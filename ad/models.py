@@ -1,18 +1,20 @@
+from django.core.exceptions import ObjectDoesNotExist
 from django.db import models
+from django.utils.encoding import smart_str
 from rest_framework import serializers
 
-from category.models import Category, CategorySerializer
-from user.models import User, UserSerializer
+from category.models import Category
+from user.models import User
 
 
 class Ad(models.Model):
     name = models.CharField(max_length=50, db_index=True, verbose_name='Заголовок')
-    author_id = models.ForeignKey(User, verbose_name='Автор', related_name='author', on_delete=models.CASCADE)
+    author = models.ForeignKey(User, verbose_name='Автор', on_delete=models.CASCADE)
     price = models.DecimalField(max_digits=10, decimal_places=0, verbose_name='Стоимость')
     description = models.TextField(max_length=500, null=True, blank=True, verbose_name='Описание')
     is_published = models.BooleanField(default=True, verbose_name='Состояние')
     image = models.ImageField(upload_to='post_images', null=True, blank=True, verbose_name='Изображение')
-    category_id = models.ForeignKey(Category, verbose_name='Категория', related_name='category', on_delete=models.CASCADE)
+    category = models.ManyToManyField(Category, verbose_name='Категории')
 
     class Meta:
         verbose_name = 'Объявление'
@@ -22,12 +24,37 @@ class Ad(models.Model):
         return self.name
 
 
-class AdSerializer(serializers.ModelSerializer):
-    author_id = UserSerializer(read_only=True)
-    category_id = CategorySerializer(read_only=True)
-
+class AdListSerializer(serializers.ModelSerializer):
     class Meta:
         model = Ad
+        depth = 2
         fields = '__all__'
 
 
+class CreatableSlugRelatedField(serializers.SlugRelatedField):
+
+    def to_internal_value(self, data):
+        try:
+            print(type(data))
+            return self.get_queryset().get_or_create(**{self.slug_field: data})[0]
+        except ObjectDoesNotExist:
+            self.fail('does_not_exist', slug_name=self.slug_field, value=smart_str(data))
+        except (TypeError, ValueError):
+            self.fail('invalid')
+
+
+class AdPostSerializer(serializers.ModelSerializer):
+    category = CreatableSlugRelatedField(
+        queryset=Category.objects.all(),
+        many=True,
+        slug_field='name'
+    )
+    author = serializers.SlugRelatedField(
+        queryset=User.objects.all(),
+        slug_field='username'
+    )
+    id = serializers.IntegerField(required=False)
+
+    class Meta:
+        model = Ad
+        fields = ('id', 'name', 'author', 'price', 'description', 'is_published', 'image', 'category')
