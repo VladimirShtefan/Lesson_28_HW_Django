@@ -126,6 +126,8 @@ MEDIA_URL = '/media/'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+TOTAL_ON_PAGE = 2
+
 LOGGING = {
     'version': 1,
     'filters': {
