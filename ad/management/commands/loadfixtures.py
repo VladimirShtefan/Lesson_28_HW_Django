@@ -34,6 +34,9 @@ class Command(BaseCommand):
             with open(path, 'r') as f:
                 reader = csv.DictReader(f)
                 for index, row_dict in enumerate(reader):
+                    if row_dict.get('category'):
+                        row_dict['category'] = row_dict['category'].split(',')
+                    print(row_dict)
                     current_form = form(data=row_dict)
                     if current_form.is_valid():
                         current_form.save()
